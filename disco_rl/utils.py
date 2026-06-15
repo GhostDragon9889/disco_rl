@@ -25,6 +25,9 @@ import jax.numpy as jnp
 import jmp
 import numpy as np
 import rlax
+from jax.sharding import Mesh
+from jax.sharding import NamedSharding
+from jax.sharding import PartitionSpec as P
 
 from disco_rl import types
 
@@ -33,12 +36,36 @@ _SpecsT = TypeVar('_SpecsT')
 
 
 def shard_across_devices(data: _T, devices: Sequence[jax.Device]) -> _T:
+  """Splits a leading batch axis and places shards on `devices`.
+
+  This is the project-local replacement for the removed
+  `jax.device_put_sharded` API.  It keeps the previous host-facing contract:
+  the input tree is split along axis 0 into one shard per device, and the
+  returned tree has a sharded leading axis that can be consumed by `jax.pmap`.
+  """
   num_shards = len(devices)
   leaves, treedef = jax.tree.flatten(data)
   split_leaves = [np.split(leaf, num_shards, axis=0) for leaf in leaves]
   flat_shards = ((leaf[i] for leaf in split_leaves) for i in range(num_shards))
   data_shards = [jax.tree.unflatten(treedef, shard) for shard in flat_shards]
-  return jax.device_put_sharded(data_shards, devices)
+  mesh = Mesh(np.asarray(devices), ('devices',))
+  sharding = NamedSharding(mesh, P('devices'))
+  return jax.tree.map(
+      lambda *xs: jax.device_put(jnp.stack(xs), sharding), *data_shards
+  )
+
+
+def replicate_across_devices(data: _T, devices: Sequence[jax.Device]) -> _T:
+  """Replicates a pytree on `devices` without `jax.device_put_replicated`.
+
+  The returned tree has a sharded leading axis of length `len(devices)`, matching
+  the legacy API's shape contract for inputs to `jax.pmap`.
+  """
+  mesh = Mesh(np.asarray(devices), ('devices',))
+  sharding = NamedSharding(mesh, P('devices'))
+  return jax.tree.map(
+      lambda x: jax.device_put(jnp.stack([x] * len(devices)), sharding), data
+  )
 
 
 def gather_from_devices(data: _T) -> _T:
