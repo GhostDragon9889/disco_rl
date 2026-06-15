@@ -29,19 +29,23 @@ keywords = [
 # pip dependencies of the project
 # Installed locally with `pip install -e .`
 dependencies = [
-  "jax",
-  "distrax",
-  "optax",
-  "jmp",
-  "rlax",
-  "dm-haiku",
+  "torch>=2.8.0",
+  "numpy",
+  "dm-env",
   "immutabledict",
   "ml_collections",
   "matplotlib",
   "seaborn",
   "pandas",
-  "tqdm"
+  "tqdm",
+  "notebook",
 ]
+
+[project.optional-dependencies]
+cuda129 = [
+  "torch>=2.8.0",
+]
+
 
 [project.urls]
 repository = "https://github.com/google-deepmind/disco_rl"

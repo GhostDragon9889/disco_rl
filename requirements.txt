@@ -1,0 +1,12 @@
+--extra-index-url https://download.pytorch.org/whl/cu129
+-e .
+torch>=2.8.0
+numpy
+dm-env
+immutabledict
+ml_collections
+matplotlib
+seaborn
+pandas
+tqdm
+notebook
