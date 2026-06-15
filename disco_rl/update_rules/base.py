@@ -91,7 +91,7 @@ class UpdateRule:
     dummy_actions = jnp.zeros(bootstrapped_shape, dtype=jnp.int32)
     agent_out_shapes = self.agent_output_spec(dummy_action_spec)
 
-    agent_out = jax.tree.map(
+    agent_out = jax.tree_util.tree_map(
         lambda s: jnp.zeros(bootstrapped_shape + s.shape), agent_out_shapes
     )
 
@@ -140,13 +140,13 @@ class UpdateRule:
           td=jnp.ones(value_unroll_batch_shape),
           normalized_td=jnp.ones(value_unroll_batch_shape),
           value_target=jnp.ones(value_unroll_batch_shape),
-          qv_adv=jax.tree.map(jnp.ones, bootstrapped_q_shape),
-          normalized_qv_adv=jax.tree.map(jnp.ones, bootstrapped_q_shape),
-          q_target=jax.tree.map(jnp.ones, q_shape),
-          q_value=jax.tree.map(jnp.ones, q_shape),
-          target_q_value=jax.tree.map(jnp.ones, q_shape),
-          q_td=jax.tree.map(jnp.ones, q_shape),
-          normalized_q_td=jax.tree.map(jnp.ones, q_shape),
+          qv_adv=jax.tree_util.tree_map(jnp.ones, bootstrapped_q_shape),
+          normalized_qv_adv=jax.tree_util.tree_map(jnp.ones, bootstrapped_q_shape),
+          q_target=jax.tree_util.tree_map(jnp.ones, q_shape),
+          q_value=jax.tree_util.tree_map(jnp.ones, q_shape),
+          target_q_value=jax.tree_util.tree_map(jnp.ones, q_shape),
+          q_td=jax.tree_util.tree_map(jnp.ones, q_shape),
+          normalized_q_td=jax.tree_util.tree_map(jnp.ones, q_shape),
       )
 
     return dummy_input

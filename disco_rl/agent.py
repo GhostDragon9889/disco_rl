@@ -107,7 +107,7 @@ class Agent:
 
   def _dummy_obs(self, batch_size: int) -> chex.ArrayTree:
     """Create dummy observation for params and actor state initialisation."""
-    return jax.tree.map(
+    return jax.tree_util.tree_map(
         lambda v: np.zeros((batch_size,) + v.shape, dtype=v.dtype),
         self.single_observation_spec,
     )
@@ -242,7 +242,7 @@ class Agent:
     total_loss = (total_loss_per_step * masks).sum() / (masks.sum() + 1e-8)
 
     # Make logs.
-    log_dict = dict(total_loss=total_loss, **jax.tree.map(jnp.mean, disco_log))
+    log_dict = dict(total_loss=total_loss, **jax.tree_util.tree_map(jnp.mean, disco_log))
     return total_loss, (meta_state, new_agent_net_state, log_dict)
 
   def learner_step(

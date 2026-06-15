@@ -193,7 +193,7 @@ class ActorRollout(ActorTimestep):
 
   def first_state(self, time_axis: int) -> HaikuState:
     index = tuple([np.s_[:]] * (time_axis - 1) + [0])
-    return jax.tree.map(lambda x: x[index], self.states)
+    return jax.tree_util.tree_map(lambda x: x[index], self.states)
 
 
 @chex.dataclass

@@ -63,7 +63,7 @@ class LSTMModel:
         one_hot_actions, [batch_size, 1]
     )  # [BA, A]
 
-    all_actions_embed = jax.tree.map(
+    all_actions_embed = jax.tree_util.tree_map(
         lambda x: jnp.repeat(x, repeats=num_actions, axis=0), embedding
     )  # [BA, *H]
 

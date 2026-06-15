@@ -40,8 +40,8 @@ def scale_by_adam_sg_denom(
   """
 
   def init_fn(params):
-    mu = jax.tree.map(jnp.zeros_like, params)  # First moment.
-    nu = jax.tree.map(jnp.zeros_like, params)  # Second moment.
+    mu = jax.tree_util.tree_map(jnp.zeros_like, params)  # First moment.
+    nu = jax.tree_util.tree_map(jnp.zeros_like, params)  # Second moment.
     return optax.ScaleByAdamState(count=jnp.zeros([], jnp.int32), mu=mu, nu=nu)
 
   def update_fn(updates, state, params=None):
@@ -51,7 +51,7 @@ def scale_by_adam_sg_denom(
     count_inc = optax.safe_int32_increment(state.count)
     mu_hat = optax.bias_correction(mu, b1, count_inc)
     nu_hat = optax.bias_correction(nu, b2, count_inc)
-    updates = jax.tree.map(
+    updates = jax.tree_util.tree_map(
         lambda m, v: m / (jnp.sqrt(v) + eps),
         mu_hat,
         jax.lax.stop_gradient(nu_hat),  # NOTE: stop_gradient on nu_hat here

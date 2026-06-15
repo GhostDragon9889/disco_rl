@@ -29,12 +29,15 @@ keywords = [
 # pip dependencies of the project
 # Installed locally with `pip install -e .`
 dependencies = [
-  "jax",
-  "distrax",
-  "optax",
-  "jmp",
-  "rlax",
-  "dm-haiku",
+  "jax>=0.10.0",
+  "jaxlib>=0.10.0",
+  "chex>=0.1.92",
+  "distrax>=0.1.9",
+  "optax>=0.2.8",
+  "jmp>=0.0.4",
+  "rlax>=0.1.9",
+  "dm-haiku>=0.0.16",
+  "numpy>=2.0",
   "immutabledict",
   "ml_collections",
   "matplotlib",

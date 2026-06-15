@@ -44,13 +44,13 @@ def shard_across_devices(data: _T, devices: Sequence[jax.Device]) -> _T:
   returned tree has a sharded leading axis that can be consumed by `jax.pmap`.
   """
   num_shards = len(devices)
-  leaves, treedef = jax.tree.flatten(data)
+  leaves, treedef = jax.tree_util.tree_flatten(data)
   split_leaves = [np.split(leaf, num_shards, axis=0) for leaf in leaves]
   flat_shards = ((leaf[i] for leaf in split_leaves) for i in range(num_shards))
-  data_shards = [jax.tree.unflatten(treedef, shard) for shard in flat_shards]
+  data_shards = [jax.tree_util.tree_unflatten(treedef, shard) for shard in flat_shards]
   mesh = Mesh(np.asarray(devices), ('devices',))
   sharding = NamedSharding(mesh, P('devices'))
-  return jax.tree.map(
+  return jax.tree_util.tree_map(
       lambda *xs: jax.device_put(jnp.stack(xs), sharding), *data_shards
   )
 
@@ -63,13 +63,13 @@ def replicate_across_devices(data: _T, devices: Sequence[jax.Device]) -> _T:
   """
   mesh = Mesh(np.asarray(devices), ('devices',))
   sharding = NamedSharding(mesh, P('devices'))
-  return jax.tree.map(
+  return jax.tree_util.tree_map(
       lambda x: jax.device_put(jnp.stack([x] * len(devices)), sharding), data
   )
 
 
 def gather_from_devices(data: _T) -> _T:
-  return jax.tree.map(
+  return jax.tree_util.tree_map(
       lambda x: x.reshape((-1, *x.shape[2:])), jax.device_get(data)
   )
 
@@ -107,14 +107,14 @@ def broadcast_specs(specs: _SpecsT, n: int, replace: bool = False) -> _SpecsT:
     else:
       raise ValueError(f'Unsupported spec type: {type(s)}')
 
-  return jax.tree.map(_prepend, specs)
+  return jax.tree_util.tree_map(_prepend, specs)
 
 
 def tree_stack(
     elems: Sequence[chex.ArrayTree], axis: int = 0
 ) -> chex.ArrayTree:
   """Stacks a sequence of trees into a single tree."""
-  return jax.tree.map(lambda *xs: jnp.stack(xs, axis=axis), *elems)
+  return jax.tree_util.tree_map(lambda *xs: jnp.stack(xs, axis=axis), *elems)
 
 
 def cast_to_single_precision(
@@ -134,7 +134,7 @@ def cast_to_single_precision(
           x = x.astype(np.int32)
       return x
 
-    return jax.tree.map(conditional_cast, tree_like)
+    return jax.tree_util.tree_map(conditional_cast, tree_like)
   else:
     return jmp.cast_to_full(tree_like)
 
@@ -164,7 +164,7 @@ def zeros_like_spec(spec: Any, prepend_shape: tuple[int, ...] = ()):
   Returns:
     A tree of zero arrays.
   """
-  return jax.tree.map(
+  return jax.tree_util.tree_map(
       lambda spec: np.zeros(shape=prepend_shape + spec.shape, dtype=spec.dtype),
       spec,
   )
@@ -218,7 +218,7 @@ class MovingAverage:
     self._eps = eps
 
   def init_state(self) -> types.EmaState:
-    zeros = jax.tree.map(
+    zeros = jax.tree_util.tree_map(
         lambda x: jnp.zeros((), jnp.float32), self._example_tree
     )
     return types.EmaState(  # pytype: disable=wrong-arg-types  # jnp-type
@@ -234,7 +234,7 @@ class MovingAverage:
       pmean_axis_name: str | None,
   ) -> types.EmaState:
     """Update moving average stats."""
-    squared_tree = jax.tree.map(jnp.square, tree_like)
+    squared_tree = jax.tree_util.tree_map(jnp.square, tree_like)
 
     def _update(
         moment: chex.Array,
@@ -248,8 +248,8 @@ class MovingAverage:
       return self._decay * moment + (1.0 - self._decay) * mean
 
     update_fn = functools.partial(_update, pmean_axis_name=pmean_axis_name)
-    moment1 = jax.tree.map(update_fn, state.moment1, tree_like)
-    moment2 = jax.tree.map(update_fn, state.moment2, squared_tree)
+    moment1 = jax.tree_util.tree_map(update_fn, state.moment1, tree_like)
+    moment2 = jax.tree_util.tree_map(update_fn, state.moment2, squared_tree)
     return types.EmaState(
         moment1=moment1,
         moment2=moment2,
@@ -265,11 +265,11 @@ class MovingAverage:
     debias = 1.0 / (1 - state.decay_product)
 
     # Debias mean.
-    mean = jax.tree.map(lambda m1: m1 * debias, state.moment1)
+    mean = jax.tree_util.tree_map(lambda m1: m1 * debias, state.moment1)
 
     # Estimate zero-centered debiased variance; clip negative values to
     # safeguard against numerical errors.
-    variance = jax.tree.map(
+    variance = jax.tree_util.tree_map(
         lambda m2, m: jnp.maximum(0.0, m2 * debias - jnp.square(m)),
         state.moment2,
         mean,
@@ -294,4 +294,4 @@ class MovingAverage:
         return val / (jnp.sqrt(var + root_eps) + self._eps)
 
     mean, variance = self._compute_moments(state)
-    return jax.tree.map(_normalize, mean, variance, value)
+    return jax.tree_util.tree_map(_normalize, mean, variance, value)
