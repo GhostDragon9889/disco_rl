@@ -82,7 +82,7 @@ class BatchedSingleStreamEnvironment(base.Environment):
     self._states = [env.reset(jax.random.PRNGKey(0))[1] for env in self._envs]
 
   def _stack_states(self) -> types.EnvironmentTimestep:
-    states = jax.tree.map(
+    states = jax.tree_util.tree_map(
         lambda *xs: np.stack(xs).reshape(self._shape_prefix + xs[0].shape),
         *self._states,
     )
@@ -93,7 +93,7 @@ class BatchedSingleStreamEnvironment(base.Environment):
   ) -> tuple[UnusedEnvState | None, types.EnvironmentTimestep]:
     del state
     chex.assert_tree_shape_prefix(actions, self._shape_prefix)
-    actions = jax.tree.map(
+    actions = jax.tree_util.tree_map(
         lambda a: a.reshape((self._num_envs,) + a.shape[2:]), actions
     )
     actions_list = rlax.tree_split_leaves(actions)

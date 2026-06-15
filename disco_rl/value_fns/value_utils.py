@@ -160,12 +160,12 @@ def get_value_outs(
     env_discounts = env_discounts[:-1]
 
   # Always drop the last action (update rule and value fn both get all actions.)
-  actions = jax.tree.map(lambda x: x[:-1], actions)
+  actions = jax.tree_util.tree_map(lambda x: x[:-1], actions)
 
   # Actor rollouts are from mu.
   rho = importance_weight(
-      jax.tree.map(lambda x: x[:-1], pi_logits),
-      jax.tree.map(lambda x: x[:-1], mu_logits),
+      jax.tree_util.tree_map(lambda x: x[:-1], pi_logits),
+      jax.tree_util.tree_map(lambda x: x[:-1], mu_logits),
       actions,
   )
 
@@ -211,15 +211,15 @@ def get_value_outs(
     )
     normalized_adv = adv_ema_fn.normalize(advantages, new_adv_ema_state)
     # Traverse only up to actions to avoid going inside adv_to_dict structure.
-    normalized_qv_adv = jax.tree.map(
+    normalized_qv_adv = jax.tree_util.tree_map(
         lambda _, x: adv_ema_fn.normalize(x, new_adv_ema_state),  # pytype: disable=wrong-arg-types
         rollout.actions,
         qv_advantages,
     )
   else:
     new_adv_ema_state = None
-    normalized_adv = jax.tree.map(jnp.zeros_like, tds)
-    normalized_qv_adv = jax.tree.map(jnp.zeros_like, qv_advantages)
+    normalized_adv = jax.tree_util.tree_map(jnp.zeros_like, tds)
+    normalized_qv_adv = jax.tree_util.tree_map(jnp.zeros_like, qv_advantages)
 
   if td_ema_state is not None and td_ema_fn is not None:
     # Update stats using q_td if q_net is provided. Otherwise, use value td.
@@ -229,18 +229,18 @@ def get_value_outs(
       normalized_td = td_ema_fn.normalize(
           tds, new_td_ema_state, subtract_mean=False
       )
-      normalized_q_td = jax.tree.map(jnp.zeros_like, q_tds)
+      normalized_q_td = jax.tree_util.tree_map(jnp.zeros_like, q_tds)
     else:
       # Normalize TD for state action-values.
       new_td_ema_state = td_ema_fn.update_state(q_tds, td_ema_state, axis_name)
       normalized_q_td = td_ema_fn.normalize(
           q_tds, new_td_ema_state, subtract_mean=False
       )
-      normalized_td = jax.tree.map(jnp.zeros_like, tds)
+      normalized_td = jax.tree_util.tree_map(jnp.zeros_like, tds)
   else:
     new_td_ema_state = None
-    normalized_td = jax.tree.map(jnp.zeros_like, tds)
-    normalized_q_td = jax.tree.map(jnp.zeros_like, q_tds)
+    normalized_td = jax.tree_util.tree_map(jnp.zeros_like, tds)
+    normalized_q_td = jax.tree_util.tree_map(jnp.zeros_like, q_tds)
 
   value_outs.normalized_adv = normalized_adv
   value_outs.normalized_qv_adv = normalized_qv_adv
@@ -298,10 +298,10 @@ def estimate_values(
   value_target = vtrace_return.errors + target_values[:-1]
 
   # Assign dummy qv_adv/q_target due to the lack of Q-values
-  dummy_q_value = jax.tree.map(jnp.zeros_like, actions)
-  dummy_qv_adv = jax.tree.map(jnp.zeros_like, actions)
-  dummy_q_target = jax.tree.map(lambda _: jnp.zeros_like(value_target), actions)
-  dummy_q_td = jax.tree.map(lambda _: jnp.zeros_like(value_target), actions)
+  dummy_q_value = jax.tree_util.tree_map(jnp.zeros_like, actions)
+  dummy_qv_adv = jax.tree_util.tree_map(jnp.zeros_like, actions)
+  dummy_q_target = jax.tree_util.tree_map(lambda _: jnp.zeros_like(value_target), actions)
+  dummy_q_td = jax.tree_util.tree_map(lambda _: jnp.zeros_like(value_target), actions)
 
   value_out = types.ValueOuts(
       adv=vtrace_return.pg_advantage,
@@ -356,8 +356,8 @@ def estimate_q_values(
   chex.assert_equal_shape_prefix(
       (values, jax.tree_util.tree_leaves(q_values)[0]), 2
   )
-  q_a = jax.tree.map(lambda x: utils.batch_lookup(x[:-1], actions), q_values)
-  target_q_a = jax.tree.map(
+  q_a = jax.tree_util.tree_map(lambda x: utils.batch_lookup(x[:-1], actions), q_values)
+  target_q_a = jax.tree_util.tree_map(
       lambda x: utils.batch_lookup(x[:-1], actions), target_q_values
   )
 
@@ -383,17 +383,17 @@ def estimate_q_values(
   clipped_rho = jnp.minimum(rho, 1.0)
   lambda_rho = lambda_ * clipped_rho
   c_t = lambda_rho
-  q_target = jax.tree.map(
+  q_target = jax.tree_util.tree_map(
       lambda q: batch_retrace_fn(q, target_values, r, d, c_t),
       target_q_a,
   )
 
   # Drop the dummy first step.
-  q_target = jax.tree.map(lambda x: x[1:], q_target)
+  q_target = jax.tree_util.tree_map(lambda x: x[1:], q_target)
   chex.assert_equal_shape([q_a, q_target])
 
   # Calculate advantage from Q-values
-  qv_adv = jax.tree.map(
+  qv_adv = jax.tree_util.tree_map(
       lambda x: x - jnp.expand_dims(target_values, axis=2), target_q_values
   )
 
@@ -402,7 +402,7 @@ def estimate_q_values(
   )
   adv = jax.tree_util.tree_leaves(q_target)[0] - target_values[:-1]
 
-  q_td = jax.tree.map(lambda target, q: target - q, q_target, q_a)
+  q_td = jax.tree_util.tree_map(lambda target, q: target - q, q_target, q_a)
 
   value_out = types.ValueOuts(
       adv=adv,
@@ -476,16 +476,16 @@ def extract_scalar_values_from_net_out(
 
   if q_net_out is not None:
     # vmap over action dims [T, B, "A", ...]
-    chex.assert_rank(jax.tree.leaves(q_net_out), 4)
+    chex.assert_rank(jax.tree_util.tree_leaves(q_net_out), 4)
     get_q_values_from_net_outs = jax.vmap(get_value_fn, in_axes=2, out_axes=2)
-    q_values = jax.tree.map(get_q_values_from_net_outs, q_net_out)
+    q_values = jax.tree_util.tree_map(get_q_values_from_net_outs, q_net_out)
   else:
     q_values = None
 
   if values is None:
     # Get state values from Q-values if values are not explicitly given
-    pi_tree = jax.tree.map(jax.nn.softmax, pi_logits)
-    values = jax.tree.map(
+    pi_tree = jax.tree_util.tree_map(jax.nn.softmax, pi_logits)
+    values = jax.tree_util.tree_map(
         lambda p, q: jnp.sum(p * q, axis=2), pi_tree, q_values
     )
 
@@ -499,8 +499,8 @@ def importance_weight(
 ) -> chex.Array:
   """Calculate importance weights from logits."""
   log_prob_fn = lambda t, a: distrax.Softmax(t).log_prob(a)
-  log_pi_a_tree = jax.tree.map(log_prob_fn, pi_logits, actions)
-  log_mu_a_tree = jax.tree.map(log_prob_fn, mu_logits, actions)
+  log_pi_a_tree = jax.tree_util.tree_map(log_prob_fn, pi_logits, actions)
+  log_mu_a_tree = jax.tree_util.tree_map(log_prob_fn, mu_logits, actions)
 
   # Joint probs.
   log_pi_a = sum(jax.tree_util.tree_leaves(log_pi_a_tree))

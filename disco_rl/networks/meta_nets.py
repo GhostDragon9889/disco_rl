@@ -82,8 +82,8 @@ class LSTM(MetaNet):
     initial_meta_rnn_state = self._meta_rnn_core.initial_state()
     meta_rnn_state = hk.get_state(
         'meta_rnn_state',
-        shape=jax.tree.map(lambda t: t.shape, initial_meta_rnn_state),
-        dtype=jax.tree.map(lambda t: t.dtype, initial_meta_rnn_state),
+        shape=jax.tree_util.tree_map(lambda t: t.shape, initial_meta_rnn_state),
+        dtype=jax.tree_util.tree_map(lambda t: t.dtype, initial_meta_rnn_state),
         init=lambda *_: initial_meta_rnn_state,
     )
     assert isinstance(meta_rnn_state, hk.LSTMState)
@@ -264,7 +264,7 @@ def _construct_input(
   """Maps update rule inputs to a single vector."""
   unroll_len, batch_size = inputs.is_terminal.shape
 
-  actions = jax.tree.map(lambda x: x[:-1], inputs.actions)  # [T, B]
+  actions = jax.tree_util.tree_map(lambda x: x[:-1], inputs.actions)  # [T, B]
   policy = lax.stop_gradient(
       jax.nn.softmax(inputs.agent_out['logits'])
   )  # [T+1, B, A]

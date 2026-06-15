@@ -104,7 +104,7 @@ class MLPHeadNet(hk.Module):
       output = output.reshape((embedding.shape[0], *spec.shape))
       return output
 
-    return jax.tree.map(_infer, self._out_spec)
+    return jax.tree_util.tree_map(_infer, self._out_spec)
 
   def unroll(
       self, inputs: chex.ArrayTree, should_reset: chex.Array | None = None

@@ -79,7 +79,7 @@ class BatchedJittableEnvironment(base.Environment):
 
     # Use initial states for terminated episodes while keeping other data.
     init_state = self._env.episode_reset(rng_step, new_state)
-    next_state = jax.tree.map(
+    next_state = jax.tree_util.tree_map(
         lambda reset_x, x: jax.lax.select(is_terminal, reset_x, x),
         init_state,
         new_state,

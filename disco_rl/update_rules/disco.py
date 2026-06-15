@@ -199,7 +199,7 @@ class DiscoUpdateRule(base.UpdateRule):
 
     # Update target params.
     coeff = hyper_params['target_params_coeff']
-    new_meta_state['target_params'] = jax.tree.map(
+    new_meta_state['target_params'] = jax.tree_util.tree_map(
         lambda old, new: old * coeff + (1.0 - coeff) * new,
         meta_state['target_params'],
         params,
@@ -223,7 +223,7 @@ class DiscoUpdateRule(base.UpdateRule):
     )
 
     # Parse the agent's output.
-    agent_out, actions = jax.tree.map(
+    agent_out, actions = jax.tree_util.tree_map(
         lambda x: x[:-1], (rollout.agent_out, rollout.actions)
     )
     logits = agent_out['logits']
