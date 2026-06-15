@@ -47,6 +47,14 @@ dependencies = [
   "tqdm"
 ]
 
+[project.optional-dependencies]
+# Install with `pip install -e .[cuda12]` on machines with NVIDIA GPUs.
+# The base dependency set intentionally remains CPU-safe; this extra installs
+# JAX's CUDA plugin to avoid the "CUDA-enabled jaxlib is not installed" warning.
+cuda12 = [
+  "jax[cuda12]>=0.6.0,<0.7",
+]
+
 [project.urls]
 repository = "https://github.com/google-deepmind/disco_rl"
 
