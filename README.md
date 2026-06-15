@@ -32,6 +32,38 @@ The package can also be installed from colab:
 !pip install git+https://github.com/google-deepmind/disco_rl.git
 ```
 
+
+
+### PyTorch / CUDA 12.9 backend
+
+This branch also includes an experimental Torch-native backend under
+`disco_rl.torch_backend`. It keeps tensors on the selected `torch.device`, so a
+CUDA 12.9 PyTorch build can run environment rollouts and actor-critic updates
+without depending on JAX device sharding.
+
+PyTorch distributes CUDA 12.9 wheels from the nightly `cu129` index. Install the
+Torch backend dependencies with:
+
+```bash
+pip install -e .[torch]
+pip install --pre -r requirements/torch-cu129.txt
+```
+
+A minimal CPU/GPU smoke test is:
+
+```python
+import torch
+from disco_rl.torch_backend import ActorCriticAgent, CatchConfig, MLPActorCritic, TorchCatchEnv
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+env = TorchCatchEnv(CatchConfig(batch_size=8, device=device))
+net = MLPActorCritic(env.observation_shape, env.num_actions).to(device)
+agent = ActorCriticAgent(net)
+rollout = agent.collect_rollout(env, rollout_length=16)
+metrics = agent.update(rollout)
+print(metrics)
+```
+
 ## Usage
 
 The code is structured as follows:

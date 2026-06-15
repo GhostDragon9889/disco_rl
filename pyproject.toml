@@ -7,7 +7,7 @@ name = "disco_rl"
 version = "1.0.0"
 description = "DiscoRL: Discovering State-of-the-art Reinforcement Learning Algorithms."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.13"
 license-files = ["LICENSE"]
 authors = [{name = "DiscoRL team", email="disco_rl@google.com"}]
 classifiers = [
@@ -41,6 +41,11 @@ dependencies = [
   "seaborn",
   "pandas",
   "tqdm"
+]
+
+[project.optional-dependencies]
+torch = [
+  "torch>=2.7",
 ]
 
 [project.urls]

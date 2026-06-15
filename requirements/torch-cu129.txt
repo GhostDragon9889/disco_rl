@@ -1,0 +1,7 @@
+# CUDA 12.9 PyTorch wheels are published on the PyTorch nightly cu129 index.
+# Install with:
+#   pip install --pre -r requirements/torch-cu129.txt
+--index-url https://download.pytorch.org/whl/nightly/cu129
+--extra-index-url https://pypi.org/simple
+
+torch>=2.9.0.dev
