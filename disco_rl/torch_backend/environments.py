@@ -15,8 +15,7 @@
 
 """Torch-native environments.
 
-The original repository keeps both CPU and JAX-jittable Catch environments.  The
-classes in this module provide the same small Catch task using only PyTorch
+The classes in this module provide the small Catch task using only PyTorch
 operations so rollouts can live directly on CUDA devices.
 """
 

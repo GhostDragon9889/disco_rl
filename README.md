@@ -1,99 +1,53 @@
-# DiscoRL: Discovering State-of-the-art Reinforcement Learning Algorithms
+# DiscoRL PyTorch CUDA 12.9 Implementation
 
-This repository contains accompanying code for the *"Discovering
- State-of-the-art Reinforcement Learning Algorithms"* Nature publication.
-
-It provides a minimal JAX harness for the DiscoRL setup together with the
- original meta-learned weights for the *Disco103* discovered update rule.
-
-The harness supports both:
-
--   **Meta-evaluation**: training an agent using the *Disco103* discovered RL
-    update rule, using the `colabs/eval.ipynb` notebook [![Open In](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/google-deepmind/disco_rl/blob/master/colabs/eval.ipynb) and
-
--   **Meta-training**: meta-learning a RL update rule from scratch or from a
-    pre-existing checkpoint, using the `colabs/meta_train.ipynb` notebook [![Open In](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/google-deepmind/disco_rl/blob/master/colabs/meta_train.ipynb)
-
-Note that it will not be actively maintained moving forward.
+This branch keeps a PyTorch-only reinforcement-learning implementation. The current implementation
+provides a CUDA-capable batched `Catch` environment, an MLP actor-critic network,
+and an on-policy actor-critic/GAE training loop.
 
 ## Installation
 
-Set up a Python virtual environment and install the package:
+CUDA 12.9 PyTorch wheels are distributed from the PyTorch nightly `cu129` index.
+Install the project and CUDA 12.9 runtime dependencies with:
 
 ```bash
-python3 -m venv disco_rl_venv
+python -m venv disco_rl_venv
 source disco_rl_venv/bin/activate
-pip install git+https://github.com/google-deepmind/disco_rl.git
+pip install -e .
+pip install --pre -r requirements.txt
 ```
 
-The package can also be installed from colab:
+If CUDA is unavailable, the same code runs on CPU for development and tests.
 
-```bash
-!pip install git+https://github.com/google-deepmind/disco_rl.git
-```
-
-
-
-### PyTorch / CUDA 12.9 backend
-
-This branch also includes an experimental Torch-native backend under
-`disco_rl.torch_backend`. It keeps tensors on the selected `torch.device`, so a
-CUDA 12.9 PyTorch build can run environment rollouts and actor-critic updates
-without depending on JAX device sharding.
-
-PyTorch distributes CUDA 12.9 wheels from the nightly `cu129` index. Install the
-Torch backend dependencies with:
-
-```bash
-pip install -e .[torch]
-pip install --pre -r requirements/torch-cu129.txt
-```
-
-A minimal CPU/GPU smoke test is:
+## Quick smoke test
 
 ```python
-import torch
-from disco_rl.torch_backend import ActorCriticAgent, CatchConfig, MLPActorCritic, TorchCatchEnv
+from disco_rl import ActorCriticAgent, CatchConfig, MLPActorCritic, TorchCatchEnv
+from disco_rl import seed_all, select_device
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+seed_all(1)
+device = select_device()
 env = TorchCatchEnv(CatchConfig(batch_size=8, device=device))
-net = MLPActorCritic(env.observation_shape, env.num_actions).to(device)
-agent = ActorCriticAgent(net)
+network = MLPActorCritic(env.observation_shape, env.num_actions).to(device)
+agent = ActorCriticAgent(network)
 rollout = agent.collect_rollout(env, rollout_length=16)
 metrics = agent.update(rollout)
 print(metrics)
 ```
 
-## Usage
+## Package layout
 
-The code is structured as follows:
-
-* `environments/` contains the general interface for the environments that can
-  be used with the provided harness, and two implementations of `Catch`:
-  a CPU-based one and jittable;
-
-* `networks/` includes a simple MLP network and LSTM-based components of the
-  DiscoRL models, all implemented in Haiku;
-
-* `update_rules/` has implementations of the discovered rules, actor-critic, and
-  policy gradient;
-
-* `value_fns/` contains value-function related utilities;
-
-* `types.py`, `utils.py`, `optimizers.py` implement a basic functionality for
-  the harness;
-
-* `agent.py` is a generic implementation of an RL agent which uses the update
-  rule's API for training, hence it is compatible with all the rules from
-  `update_rules/`.
-
-Detailed examples of usage can be found in the colabs above.
+* `disco_rl.agent` exposes the PyTorch `ActorCriticAgent` and config.
+* `disco_rl.torch_backend.environments` implements batched Torch `Catch`.
+* `disco_rl.torch_backend.networks` implements `MLPActorCritic`.
+* `disco_rl.torch_backend.types` defines Torch `TimeStep` and `Rollout` data
+  containers.
+* `disco_rl.utils` contains Torch-oriented device and seeding helpers.
 
 ## Citation
 
 Please cite the original Nature paper:
 
-```
+```bibtex
 @Article{DiscoRL2025,
   author  = {Oh, Junhyuk and Farquhar, Greg and Kemaev, Iurii and Calian, Dan A. and Hessel, Matteo and Zintgraf, Luisa and Singh, Satinder and van Hasselt, Hado and Silver, David},
   journal = {Nature},
@@ -107,19 +61,5 @@ Please cite the original Nature paper:
 
 Copyright 2025 Google LLC
 
-All software is licensed under the Apache License, Version 2.0 (Apache 2.0);
-you may not use this file except in compliance with the Apache 2.0 license.
-You may obtain a copy of the Apache 2.0 license at:
-https://www.apache.org/licenses/LICENSE-2.0
-
-All other materials are licensed under the Creative Commons Attribution 4.0
-International License (CC-BY). You may obtain a copy of the CC-BY license at:
-https://creativecommons.org/licenses/by/4.0/legalcode
-
-Unless required by applicable law or agreed to in writing, all software and
-materials distributed here under the Apache 2.0 or CC-BY licenses are
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-either express or implied. See the licenses for the specific language governing
-permissions and limitations under those licenses.
-
+All software is licensed under the Apache License, Version 2.0 (Apache 2.0).
 This is not an official Google product.

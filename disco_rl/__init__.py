@@ -13,6 +13,26 @@
 # limitations under the License.
 # ==============================================================================
 
-"""DiscoRL."""
+"""DiscoRL PyTorch implementation."""
 
-__version__ = "1.0.0"
+from disco_rl.agent import ActorCriticAgent
+from disco_rl.agent import ActorCriticConfig
+from disco_rl.torch_backend import CatchConfig
+from disco_rl.torch_backend import MLPActorCritic
+from disco_rl.torch_backend import Rollout
+from disco_rl.torch_backend import TimeStep
+from disco_rl.torch_backend import TorchCatchEnv
+from disco_rl.utils import seed_all
+from disco_rl.utils import select_device
+
+__all__ = [
+    'ActorCriticAgent',
+    'ActorCriticConfig',
+    'CatchConfig',
+    'MLPActorCritic',
+    'Rollout',
+    'TimeStep',
+    'TorchCatchEnv',
+    'seed_all',
+    'select_device',
+]
