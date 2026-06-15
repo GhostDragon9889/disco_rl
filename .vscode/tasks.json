@@ -1,0 +1,11 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Activate Conda",
+            "type": "shell",
+            "command": "conda activate disco_1 && echo '环境已准备就绪'",
+            "problemMatcher": []
+        }
+    ]
+}
