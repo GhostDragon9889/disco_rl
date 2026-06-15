@@ -1,0 +1,10 @@
+torch==2.8.0
+numpy>=1.26
+dm-env>=1.6
+ml-collections>=0.1.1
+matplotlib>=3.8
+seaborn>=0.13
+pandas>=2.2
+tqdm>=4.66
+ipykernel>=6.29
+notebook>=7.2

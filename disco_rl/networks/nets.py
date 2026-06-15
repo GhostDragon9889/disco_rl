@@ -1,158 +1,76 @@
-# Copyright 2025 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
+"""PyTorch policy/value networks."""
 
-"""Network factory."""
+from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-import chex
-import haiku as hk
-from haiku import initializers as hk_init
-import jax
-from jax import numpy as jnp
 import numpy as np
+import torch
+from torch import nn
 
-from disco_rl import types
-from disco_rl.networks import action_models
-
-
-def get_network(name: str, *args, **kwargs) -> types.PolicyNetwork:
-  """Constructs a network."""
-
-  def _get_net():
-    if name == 'mlp':
-      return MLP(*args, **kwargs)
-    else:
-      raise ValueError(f'Unknown network: {name}')
-
-  def _agent_step(*call_args, **call_kwargs):
-    return _get_net()(*call_args, **call_kwargs)
-
-  def _unroll(*call_args, **call_kwargs):
-    return _get_net().unroll(*call_args, **call_kwargs)
-
-  module_init_fn, one_step_fn = hk.without_apply_rng(
-      hk.transform_with_state(_agent_step)
-  )
-  _, unroll_fn = hk.without_apply_rng(hk.transform_with_state(_unroll))
-
-  return types.PolicyNetwork(
-      init=module_init_fn,
-      one_step=one_step_fn,
-      unroll=unroll_fn,
-  )
+from disco_rl import types, utils
 
 
-class MLPHeadNet(hk.Module):
-  """MLP heads according to the update rules' out_spec."""
+class MLP(nn.Module):
+  """Shared torso with policy, categorical prediction and Q heads."""
 
   def __init__(
       self,
-      out_spec: chex.ArrayTree,
-      action_spec: types.Specs,
-      head_w_init_std: float | None,
-      model_out_spec: chex.ArrayTree | None = None,
-      model_arch_name: str | None = None,
-      model_kwargs: Mapping[str, Any] | None = None,
-      module_name: str | None = None,
-  ):
-    super().__init__(name=module_name)
-    self._out_spec = out_spec
-    self._action_spec = action_spec
-    if model_out_spec:
-      self._model = action_models.get_action_model(
-          model_arch_name,
-          action_spec=action_spec,
-          out_spec=model_out_spec,
-          **model_kwargs,
-      )
-    else:
-      self._model = None
-    self._head_w_init = (
-        hk_init.TruncatedNormal(head_w_init_std) if head_w_init_std else None
-    )
-
-  def _embedding_pass(
-      self, inputs: chex.ArrayTree, should_reset: chex.Array | None = None
-  ) -> chex.Array:
-    """Compute embedding from agent inputs."""
-    raise NotImplementedError
-
-  def _head_pass(self, embedding: chex.Array) -> dict[str, chex.Array]:
-    """Compute outputs as linear functions of embedding."""
-    embedding = hk.Flatten()(embedding)
-
-    def _infer(spec: types.ArraySpec) -> chex.Array:
-      output = hk.nets.MLP(
-          output_sizes=(np.prod(spec.shape),),
-          w_init=self._head_w_init,
-          name='torso_head',
-      )(embedding)
-      output = output.reshape((embedding.shape[0], *spec.shape))
-      return output
-
-    return jax.tree.map(_infer, self._out_spec)
-
-  def unroll(
-      self, inputs: chex.ArrayTree, should_reset: chex.Array | None = None
-  ) -> dict[str, chex.Array]:
-    """Assumes there is a time dimension in the inputs."""
-    return hk.BatchApply(self.__call__)(inputs, should_reset)
-
-  def __call__(
-      self, inputs: chex.ArrayTree, should_reset: chex.Array | None = None
-  ) -> dict[str, chex.Array]:
-    torso = self._embedding_pass(inputs)
-    out = self._head_pass(torso)
-    if self._model:
-      root = self._model.root_embedding(torso)
-      model_out = self._model.model_step(root)
-      out.update(model_out)
-    return out
-
-
-class MLP(MLPHeadNet):
-  """Simple MLP network."""
-
-  def __init__(
-      self,
-      out_spec: chex.ArrayTree,
-      dense: Iterable[int],
-      action_spec: types.Specs,
-      head_w_init_std: float | None,
-      model_out_spec: chex.ArrayTree | None = None,
-      model_arch_name: str | None = None,
-      model_kwargs: Mapping[str, Any] | None = None,
-      module_name: str | None = None,
+      observation_shape: Iterable[int],
+      action_spec: types.ActionSpec,
+      dense: Iterable[int] = (64, 64),
+      prediction_size: int = 32,
+      num_bins: int = 51,
+      head_w_init_std: float | None = 0.01,
+      **_: Any,
   ) -> None:
-    super().__init__(
-        out_spec,
-        action_spec=action_spec,
-        model_out_spec=model_out_spec,
-        head_w_init_std=head_w_init_std,
-        model_arch_name=model_arch_name,
-        model_kwargs=model_kwargs,
-        module_name=module_name,
-    )
-    self._dense = dense
+    super().__init__()
+    self.num_actions = utils.get_num_actions_from_spec(action_spec)
+    self.prediction_size = prediction_size
+    self.num_bins = num_bins
+    in_dim = int(np.prod(tuple(observation_shape)))
+    layers: list[nn.Module] = [nn.Flatten()]
+    last = in_dim
+    for width in dense:
+      layers += [nn.Linear(last, int(width)), nn.ReLU()]
+      last = int(width)
+    self.torso = nn.Sequential(*layers)
+    self.logits = nn.Linear(last, self.num_actions)
+    self.y = nn.Linear(last, prediction_size)
+    self.z = nn.Linear(last, self.num_actions * prediction_size)
+    self.aux_pi = nn.Linear(last, self.num_actions * self.num_actions)
+    self.q = nn.Linear(last, self.num_actions * num_bins)
+    if head_w_init_std:
+      for head in (self.logits, self.y, self.z, self.aux_pi, self.q):
+        nn.init.trunc_normal_(head.weight, std=head_w_init_std)
+        nn.init.zeros_(head.bias)
 
-  def _embedding_pass(
-      self, inputs: chex.ArrayTree, should_reset: chex.Array | None = None
-  ) -> chex.Array:
-    del should_reset
-    inputs = [hk.Flatten()(x) for x in jax.tree_util.tree_leaves(inputs)]
-    inputs = jnp.concatenate(inputs, axis=-1)
-    return hk.nets.MLP(self._dense, name='torso')(inputs)
+  def forward(self, observations: torch.Tensor) -> dict[str, torch.Tensor]:
+    orig_shape = observations.shape[:-len(observations.shape[-2:])] if observations.ndim > 2 else observations.shape[:-1]
+    flat = observations.reshape(-1, *observations.shape[-2:]) if observations.ndim > 2 else observations.reshape(-1, observations.shape[-1])
+    h = self.torso(flat.float())
+    out = {
+        "logits": self.logits(h),
+        "y": self.y(h),
+        "z": self.z(h).reshape(-1, self.num_actions, self.prediction_size),
+        "aux_pi": self.aux_pi(h).reshape(-1, self.num_actions, self.num_actions),
+        "q": self.q(h).reshape(-1, self.num_actions, self.num_bins),
+    }
+    return {k: v.reshape(*orig_shape, *v.shape[1:]) for k, v in out.items()}
+
+
+def get_network(
+    name: str,
+    *,
+    observation_shape: Iterable[int],
+    action_spec: types.ActionSpec,
+    out_spec: Mapping[str, Any] | None = None,
+    model_out_spec: Mapping[str, Any] | None = None,
+    **kwargs: Any,
+) -> types.PolicyNetwork:
+  del out_spec, model_out_spec
+  if name != "mlp":
+    raise ValueError(f"Unknown network: {name}")
+  module = MLP(observation_shape=observation_shape, action_spec=action_spec, **kwargs)
+  return types.PolicyNetwork(module=module, one_step=module, unroll=module)

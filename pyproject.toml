@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "disco_rl"
 version = "1.0.0"
-description = "DiscoRL: Discovering State-of-the-art Reinforcement Learning Algorithms."
+description = "DiscoRL: PyTorch/CUDA 12.9 implementation of discovered reinforcement-learning update rules."
 readme = "README.md"
 requires-python = ">=3.11"
 license-files = ["LICENSE"]
@@ -26,26 +26,27 @@ keywords = [
   "data driven research",
 ]
 
-# pip dependencies of the project
-# Installed locally with `pip install -e .`
 dependencies = [
-  "jax",
-  "distrax",
-  "optax",
-  "jmp",
-  "rlax",
-  "dm-haiku",
-  "immutabledict",
-  "ml_collections",
-  "matplotlib",
-  "seaborn",
-  "pandas",
-  "tqdm"
+  "torch==2.8.0",
+  "numpy>=1.26",
+  "dm-env>=1.6",
+  "ml-collections>=0.1.1",
+  "matplotlib>=3.8",
+  "seaborn>=0.13",
+  "pandas>=2.2",
+  "tqdm>=4.66",
+  "ipykernel>=6.29",
+  "notebook>=7.2",
+]
+
+[project.optional-dependencies]
+cuda129 = [
+  "torch==2.8.0",
 ]
 
 [project.urls]
 repository = "https://github.com/google-deepmind/disco_rl"
 
 [tool.setuptools.packages.find]
-where = ["."]  # list of folders that contain the packages (["."] by default)
-include = ["*"]  # package names should match these glob patterns (["*"] by default)
+where = ["."]
+include = ["disco_rl*"]
